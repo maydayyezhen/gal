@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galgame</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- 游戏主界面 -->
+    <header id="title-bar"></header>
+
+    <div id="scene-layer">
+      <div id="background-layer"></div>
+      <div id="background-layer2"></div>
+      <div id="character-layer"></div>
+    </div>
+
+    <div id="dialog-box">
+      <div id="dialog-header">
+        <div id="dialog-name"></div>
+        <div id="control-bar">
+          <button class="ctrl-btn" id="btn-auto" title="自动播放">AUTO</button>
+          <button class="ctrl-btn" id="btn-skip" title="快进">SKIP</button>
+          <button class="ctrl-btn" id="btn-save" title="快速存档">SAVE</button>
+          <button class="ctrl-btn" id="btn-title" title="返回标题">TITLE</button>
+          <button class="ctrl-btn" id="btn-log" title="对话记录">LOG</button>
+          <button class="ctrl-btn" id="btn-settings" title="设定">⚙</button>
+        </div>
+      </div>
+      <div id="dialog-text"></div>
+      <div id="choice-container"></div>
+      <div id="click-hint">▼</div>
+    </div>
+
+    <!-- 设置面板 -->
+    <div id="settings-panel" class="overlay hidden">
+      <div id="settings-box">
+        <h2>设定</h2>
+        <div class="setting-row">
+          <label>BGM 音量</label>
+          <input type="range" id="vol-bgm" min="0" max="100" value="40">
+          <span class="vol-val" id="vol-bgm-val">40</span>
+        </div>
+        <div class="setting-row">
+          <label>音效音量</label>
+          <input type="range" id="vol-se" min="0" max="100" value="60">
+          <span class="vol-val" id="vol-se-val">60</span>
+        </div>
+        <div class="setting-row">
+          <label>语音音量</label>
+          <input type="range" id="vol-voice" min="0" max="100" value="80">
+          <span class="vol-val" id="vol-voice-val">80</span>
+        </div>
+        <div class="setting-row">
+          <label>文字速度</label>
+          <input type="range" id="text-speed" min="10" max="80" value="35">
+          <span class="vol-val" id="text-speed-val">35</span>
+        </div>
+        <div class="setting-row">
+          <label>自动等待(秒)</label>
+          <input type="range" id="auto-wait" min="1" max="6" value="2" step="0.5">
+          <span class="vol-val" id="auto-wait-val">2.0</span>
+        </div>
+        <div class="panel-actions">
+          <button class="title-btn" id="btn-save-quick">快速存档</button>
+          <button class="title-btn" id="btn-load-quick">读档</button>
+          <button class="title-btn" id="btn-back-title">返回标题</button>
+          <button class="title-btn" id="btn-settings-close">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 对话记录面板 -->
+    <div id="log-panel" class="overlay hidden">
+      <div id="log-box">
+        <h2>对话记录</h2>
+        <div id="log-content"></div>
+        <button class="title-btn" id="btn-log-close">关闭</button>
+      </div>
+    </div>
+
+    <!-- 加载界面 -->
+    <div id="loading-screen">
+      <div id="loading-text">Loading...</div>
+      <div id="loading-bar"><div id="loading-progress"></div></div>
+    </div>
+  </div>
+
+  <!-- 章节系统 -->
+  <script src="scripts/chapterLoader.js"></script>
+  
+  <!-- 加载各章节剧本 -->
+  <script src="chapters/chapter1_parts/meta.js"></script>
+  <script src="chapters/chapter1_parts/resources.js"></script>
+  <script src="chapters/chapter1_parts/scenes_01.js"></script>
+  <script src="chapters/chapter1_parts/scenes_02.js"></script>
+  <script src="chapters/chapter1_parts/scenes_03.js"></script>
+  <script src="chapters/chapter1.js"></script>
+  <!-- 添加新章节时,在这里引入: -->
+  <!-- <script src="chapters/chapter2.js"></script> -->
+  <!-- <script src="chapters/chapter3.js"></script> -->
+  
+  <!-- 合并章节数据供游戏系统使用 -->
+  <script>
+    // 从章节加载器获取合并后的剧本数据
+    var SCRIPT_DATA = chapterLoader.getMergedScriptData();
+    console.log('Loaded chapters:', chapterLoader.getAvailableChapters());
+  </script>
+  
+  <!-- 游戏核心系统 -->
+  <script src="engine/audio/audio-generator.js"></script>
+  <script src="engine/core/utils.js"></script>
+  <script src="engine/core/scriptLoader.js"></script>
+  <script src="engine/resource/resourceLoader.js"></script>
+  <script src="engine/effects/particleSystem.js"></script>
+  <script src="engine/render/items.js"></script>
+  <script src="engine/effects/effects.js"></script>
+  <script src="engine/animation/characterAnimations.js"></script>
+  <script src="engine/render/itemDisplay.js"></script>
+  <script src="engine/scene/sceneManager.js"></script>
+  <script src="engine/scene/choiceManager.js"></script>
+  <script src="engine/core/main.js"></script>
+</body>
+</html>

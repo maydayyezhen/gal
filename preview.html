@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editor Preview</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+    #game-container { width: 100%; height: 100%; }
+    /* 预览模式：去掉一些没必要的按钮和提示 */
+    #menu-buttons, #click-hint, #title-bar { display: none !important; }
+    #dialog-box { opacity: 0.95; }
+    #preview-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.55);
+      z-index: 9999;
+      color: #e6e6e6;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      text-align: center;
+      padding: 16px;
+    }
+    #preview-overlay.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="scene-layer">
+      <div id="background-layer"><img id="background-image" alt="" /></div>
+      <div id="character-layer"></div>
+    </div>
+    <div id="ui-layer">
+      <div id="dialog-box">
+        <div id="dialog-name"></div>
+        <div id="dialog-content"><p id="dialog-text"></p></div>
+      </div>
+      <div id="choice-container"></div>
+    </div>
+  </div>
+
+  <div id="preview-overlay">
+    等待编辑器连接…
+  </div>
+
+  <!-- 核心引擎脚本（不加载 main.js，避免自动进游戏） -->
+  <script src="engine/audio/audio-generator.js"></script>
+  <script src="engine/core/utils.js"></script>
+  <script src="engine/core/scriptLoader.js"></script>
+  <script src="engine/resource/resourceLoader.js"></script>
+  <script src="engine/effects/particleSystem.js"></script>
+  <script src="engine/render/items.js"></script>
+  <script src="engine/render/itemDisplay.js"></script>
+  <script src="engine/effects/effects.js"></script>
+  <script src="engine/animation/characterAnimations.js"></script>
+  <script src="engine/scene/sceneManager.js"></script>
+
+  <!-- 预览桥接：接收编辑器消息并调用 GG.previewSceneAt -->
+  <script src="engine/preview/previewBridge.js"></script>
+</body>
+</html>

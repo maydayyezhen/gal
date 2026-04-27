@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>剧本编辑器 - Script Editor</title>
+  <link rel="stylesheet" href="styles/editor.css">
+</head>
+<body>
+  <div class="editor-container">
+    <!-- 左侧边栏 -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>📚 章节列表</h2>
+        <div id="loadStatus" style="font-size: 12px; color: #999; margin-top: 5px;">加载中...</div>
+      </div>
+      
+      <div class="chapter-list" id="chapterList">
+        <!-- 章节列表动态生成 -->
+      </div>
+      
+      <div class="sidebar-actions">
+        <button class="btn" onclick="createNewChapter()">+ 新建章节</button>
+        <button class="btn btn-secondary" onclick="saveCurrentChapter()">💾 保存当前章节</button>
+        <button class="btn btn-secondary" onclick="openDiffModal()">🧾 查看改动</button>
+        <button class="btn btn-secondary" id="restoreDraftBtn" onclick="restoreLocalDrafts()" style="display:none">↩ 恢复本地草稿</button>
+        <button class="btn btn-secondary" id="clearDraftBtn" onclick="clearLocalDrafts()" style="display:none">🧹 清空本地草稿</button>
+        <button class="btn btn-secondary" onclick="reloadFromProject()">🔄 重新加载项目章节</button>
+        <button class="btn btn-secondary" onclick="saveAllChapters()">💾 保存全部章节</button>
+        <button class="btn btn-secondary" onclick="exportProject()">📦 导出项目</button>
+      </div>
+    </div>
+
+    <!-- 主编辑区 -->
+    <div class="main-editor">
+      <div class="editor-header">
+        <div class="editor-title">
+          <h1 id="currentChapterTitle">选择一个章节开始编辑</h1>
+        </div>
+        <div class="editor-tabs">
+          <div class="tab active" onclick="switchTab('scenes')">📝 场景编辑</div>
+          <div class="tab" onclick="switchTab('settings')">⚙️ 章节设置</div>
+          <div class="tab" onclick="switchTab('qa')">🧪 校验/Playtest</div>
+        </div>
+      </div>
+
+      <div class="editor-content">
+        <!-- 场景编辑 -->
+        <div id="tab-scenes" class="tab-content">
+          <div class="empty-state" id="emptyState">
+            <div class="empty-state-icon">📖</div>
+            <div class="empty-state-text">还没有选择章节</div>
+            <div class="empty-state-hint">从左侧选择一个章节开始编辑</div>
+          </div>
+          <div id="sceneEditor" style="display: none;">
+            <button class="btn" onclick="addNewScene()" style="margin-bottom: 20px;">+ 添加新场景</button>
+            <div class="scene-list" id="sceneList">
+              <!-- 场景列表动态生成 -->
+            </div>
+          </div>
+        </div>
+
+
+        <!-- 章节设置 -->
+        <div id="tab-settings" class="tab-content" style="display: none;">
+          <div class="form-group">
+            <label class="form-label">章节号</label>
+            <input type="number" class="form-input" id="chapterNumber" placeholder="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">章节标题</label>
+            <input type="text" class="form-input" id="chapterTitle" placeholder="第一章 章节名">
+          </div>
+          <div class="form-group">
+            <label class="form-label">作者</label>
+            <input type="text" class="form-input" id="chapterAuthor" placeholder="夜真">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">游戏标题（meta.gameTitle）</label>
+            <input type="text" class="form-input" id="chapterGameTitle" placeholder="winter_whispers_game / 梦境恋爱事故">
+          </div>
+          <div class="form-group">
+            <label class="form-label">版本号（meta.version）</label>
+            <input type="text" class="form-input" id="chapterVersion" placeholder="1.0.0">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">说话人映射（meta.speakerMap）</label>
+            <div class="speaker-map-box">
+              <div class="speaker-map-hint">
+                用来把对白里的“显示名”（例如：夜/阳菜/???）映射到舞台角色 key（例如：sora/hina/princess/homework_slime）。<br>
+                这样编辑器的舞台推导、说话人高亮、默认站位才能和游戏一致。
+              </div>
+
+              <datalist id="speakerKeyList">
+                <option value="hina"></option>
+                <option value="sora"></option>
+                <option value="princess"></option>
+                <option value="homework_slime"></option>
+              </datalist>
+
+              <div id="speakerMapRows" class="speaker-map-rows">
+                <!-- rows -->
+              </div>
+
+              <div class="speaker-map-actions">
+                <button class="btn btn-secondary btn-inline" onclick="addSpeakerMapRow()">+ 添加映射</button>
+                <button class="btn btn-secondary btn-inline" onclick="fillCommonSpeakerMap()">✨ 常用一键填充</button>
+                <button class="btn btn-danger btn-inline" onclick="clearSpeakerMap()">🧹 清空</button>
+              </div>
+
+              <div class="speaker-map-hint">
+                例：显示名“夜” → key “sora”；显示名“阳菜” → key “hina”；“???” → “princess”。<br>
+                key 不一定只能用上面的几个，但建议与你剧本里的角色 key 保持一致。
+              </div>
+            </div>
+          </div>
+
+          <button class="btn" onclick="saveChapterSettings()">保存设置</button>
+</div>
+
+        <!-- 校验 / Playtest -->
+        <div id="tab-qa" class="tab-content" style="display: none;">
+          <div class="qa-panel">
+            <div class="section-title">🔎 QA-01 资源校验（引用 / 缺失 / 未使用 / 文件可加载性）</div>
+            <div class="qa-row">
+              <label><input type="radio" name="qaScope" value="current" checked> 当前章节</label>
+              <label><input type="radio" name="qaScope" value="all"> 全部已加载章节</label>
+              <label><input type="checkbox" id="qaIncludeGlobal" checked> 包含全局资源表（默认注入/导入）</label>
+              <label><input type="checkbox" id="qaCheckFiles" checked> 尝试检测文件是否可加载（图片/音频）</label>
+            </div>
+            <div class="qa-actions">
+              <button class="btn btn-secondary btn-inline" onclick="runResourceAudit()">开始扫描</button>
+              <button class="btn btn-secondary btn-inline" onclick="downloadLastAuditReport()">下载报告</button>
+              <button class="btn btn-danger btn-inline" onclick="clearAuditReport()">清空</button>
+            </div>
+            <div id="qaAuditStatus" style="color:#999; font-size:12px; margin-top:6px;">等待扫描…</div>
+            <div id="qaAuditReport" class="qa-report">这里会显示扫描结果。你的人生也是。</div>
+          </div>
+
+          <div class="qa-panel">
+            <div class="section-title">🎮 QA-02 行级 Playtest（从编辑器直接跳到 game.html 某一句）</div>
+            <div style="color:#bbb; font-size:13px; line-height:1.6;">
+              现在在「场景编辑 Step-4」每条对白卡片右上角，会多一个 <span class="qa-pill">Playtest</span> 按钮。点一下就会打开 <code>game.html</code> 并定位到该句（scene + line）。<br>
+              另外，在章节场景列表的每个场景卡片右上角也会多一个 <span class="qa-pill">Playtest</span>，用于从该场景第1句开始跑。
+            </div>
+            <div class="qa-actions">
+              <button class="btn btn-secondary btn-inline" onclick="openGamePlaytest()">打开游戏页（从第一场景）</button>
+              <button class="btn btn-secondary btn-inline" onclick="openCurrentChapterFirstScenePlaytest()">打开当前章节第1场景</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 场景编辑模态框（由 editor.js 动态生成内容） -->
+  <div class="modal" id="sceneModal">
+    <div class="modal-content">
+      <div id="sceneForm" class="scene-form-root">
+        <!-- 动态生成表单 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 改动对比模态框 -->
+  <div class="modal" id="diffModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="diffTitle">🧾 当前章节改动</h3>
+        <div id="diffSummary" class="diff-summary"></div>
+      </div>
+      <div class="modal-body">
+        <div class="diff-body">
+          <pre id="diffText" class="diff-pre">（暂无）</pre>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary btn-inline" onclick="copyDiffToClipboard()">复制</button>
+        <button class="btn btn-secondary btn-inline" onclick="downloadDiffReport()">下载</button>
+        <button class="btn btn-inline" onclick="closeDiffModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/chapterLoader.js"></script>
+  
+  <!-- 加载现有章节 -->
+  <script src="chapters/chapter1_parts/meta.js"></script>
+  <script src="chapters/chapter1_parts/resources.js"></script>
+  <script src="chapters/chapter1_parts/scenes_01.js"></script>
+  <script src="chapters/chapter1_parts/scenes_02.js"></script>
+  <script src="chapters/chapter1_parts/scenes_03.js"></script>
+  <script src="chapters/chapter1.js"></script>
+  <script src="chapters/chapter2.js"></script>
+  <!-- 如果有更多章节，在这里添加 -->
+  
+  <script src="editor/editor.js"></script>
+</body>
+</html>

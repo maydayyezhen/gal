@@ -1,0 +1,421 @@
+/* ====== Reset ====== */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000; font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif; user-select:none; -webkit-user-select:none; }
+
+/* 轻量通用隐藏（给按钮用） */
+.is-hidden { display:none !important; }
+
+/* ====== Game Container ====== */
+#game-container { position:relative; width:100vw; height:100vh; overflow:hidden; }
+
+/* ====== Title Screen ====== */
+#title-screen {
+  position:absolute; inset:0; z-index:50;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  transition: opacity 0.8s ease;
+}
+#title-screen.hidden { opacity:0; pointer-events:none; }
+
+#title-bg {
+  position:absolute; inset:0;
+  background: url('../images/backgrounds/title.png') center/cover no-repeat;
+}
+#title-bg::after{
+  content:'';
+  position:absolute; inset:0;
+  background:
+    linear-gradient(135deg, rgba(15,10,26,0.78) 0%, rgba(26,16,48,0.58) 30%, rgba(42,24,69,0.46) 60%, rgba(15,10,26,0.82) 100%),
+    radial-gradient(ellipse at 50% 40%, rgba(240,198,116,0.10) 0%, rgba(240,198,116,0.00) 60%);
+}
+
+#title-content { position:relative; z-index:1; text-align:center; }
+
+#title-name {
+  font-size:52px; font-weight:300; color:#e8dcc8;
+  letter-spacing:12px; margin-bottom:8px;
+  text-shadow: 0 0 40px rgba(240,198,116,0.2);
+}
+#title-subtitle {
+  font-size:13px; color:rgba(200,190,175,0.4); letter-spacing:6px; margin-bottom:60px;
+}
+
+#title-menu { display:flex; flex-direction:column; align-items:center; gap:14px; }
+
+.title-btn {
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12);
+  color:#c8c0b0; font-size:14px; padding:11px 48px; border-radius:4px;
+  cursor:pointer; letter-spacing:3px; transition:all 0.25s ease;
+  min-width:180px; font-family:inherit;
+}
+.title-btn:hover { background:rgba(240,198,116,0.1); border-color:rgba(240,198,116,0.3); color:#f0c674; }
+
+#title-footer {
+  position:absolute; bottom:40px; left:50%; transform:translateX(-50%);
+  color:rgba(255,255,255,0.15); font-size:12px; letter-spacing:4px;
+  animation: titlePulse 2.5s ease-in-out infinite;
+}
+@keyframes titlePulse { 0%,100%{opacity:0.15;} 50%{opacity:0.4;} }
+
+/* ====== Title Bar ====== */
+#title-bar {
+  position:absolute; top:0; left:0; width:100%; height:42px;
+  background:linear-gradient(180deg,rgba(0,0,0,0.7),rgba(0,0,0,0));
+  color:#e0d8cc; font-size:15px; letter-spacing:2px;
+  display:flex; align-items:center; padding-left:24px;
+  z-index:10; pointer-events:none;
+}
+
+/* ====== Scene Layers ====== */
+#scene-layer { position:absolute; inset:0; z-index:1; }
+#background-layer, #background-layer2 {
+  position:absolute; inset:0;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  opacity:0;
+  transition: opacity 0.65s ease;
+  will-change: opacity;
+}
+#background-layer.active, #background-layer2.active { opacity:1; }
+#character-layer { position:absolute; inset:0; z-index:2; pointer-events:none; }
+
+/* ====== Item Layer / HUD ====== */
+#item-layer {
+  position:absolute; inset:0;
+  z-index:3;
+  pointer-events:none;
+}
+
+#item-toast-layer {
+  position:fixed; inset:0;
+  z-index:45;
+  pointer-events:none;
+}
+
+.gg-item {
+  position:absolute;
+  opacity:0;
+  transform-origin:center;
+}
+.gg-item .gg-item-glow{
+  position:absolute; inset:12%;
+  border-radius:50%;
+  background: radial-gradient(circle, rgba(240,198,116,0.22) 0%, rgba(112,208,255,0.10) 38%, rgba(0,0,0,0) 70%);
+  filter: blur(16px);
+}
+.gg-item img{
+  width:100%; height:100%;
+  object-fit:contain;
+  filter: drop-shadow(0 10px 26px rgba(0,0,0,0.45));
+}
+.gg-item .gg-item-label{
+  position:absolute;
+  left:50%;
+  top:100%;
+  transform:translate(-50%, 10px);
+  padding:6px 12px;
+  border-radius:999px;
+  background:rgba(10,10,15,0.62);
+  border:1px solid rgba(240,198,116,0.18);
+  color:rgba(232,220,200,0.92);
+  font-size:12px;
+  letter-spacing:1px;
+  backdrop-filter: blur(6px);
+}
+
+.gg-item-toast{
+  position:absolute;
+  left:50%;
+  top:14%;
+  transform:translate(-50%, -24px);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 16px;
+  border-radius:12px;
+  background:rgba(20,16,30,0.88);
+  border:1px solid rgba(240,198,116,0.20);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+  opacity:0;
+}
+.gg-item-toast .toast-icon{
+  width:44px; height:44px;
+  object-fit:contain;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.45));
+}
+.gg-item-toast .toast-text{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.gg-item-toast .toast-title{
+  font-size:12px;
+  color:rgba(240,198,116,0.85);
+  letter-spacing:1px;
+}
+.gg-item-toast .toast-name{
+  font-size:14px;
+  color:rgba(232,228,220,0.95);
+  letter-spacing:1px;
+}
+
+#inventory-hud{
+  position:absolute;
+  top:54px;
+  right:18px;
+  z-index:25;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:12px;
+  background:rgba(10,10,15,0.25);
+  border:1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(6px);
+  opacity:0;
+  pointer-events:none;
+  transition: opacity 0.35s ease;
+}
+#inventory-hud.visible{ opacity:0.95; }
+.inv-slot{
+  width:34px; height:34px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.12);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.inv-slot img{
+  width:26px; height:26px;
+  object-fit:contain;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.45));
+}
+
+.character-sprite {
+  position:absolute;
+  bottom:0;
+  height:90%;
+  width:auto;
+  /* 说话高亮/淡出要更“及时”，别像慢动作回放 */
+  transition: opacity 0.25s ease, transform 0.25s ease, filter 0.18s ease;
+  filter: drop-shadow(0 2px 12px rgba(0,0,0,0.3));
+}
+
+/* 默认“微动”错觉：用内层包裹来晃动，避免和外层定位/镜头动画打架 */
+.character-idle {
+  height:100%;
+  display:block;
+  transform-origin: 50% 100%;
+  will-change: transform;
+  /* 线性 + 0/100 同态，避免循环点和中点出现“顿一下”的错觉 */
+  transform: translate3d(0,0,0);
+  animation: idleSway var(--idleDur, 3400ms) linear infinite;
+  animation-delay: var(--idleDelay, 0ms);
+}
+
+.character-sprite.monster .character-idle {
+  /* 史莱姆已经有更夸张的待机（Web Animations），别叠加小晃动 */
+  animation: none;
+}
+
+/* 史莱姆立绘偏粉时，用滤镜轻微拉回“冷蓝黏液”气质（不改素材） */
+.character-sprite.monster .character-img {
+  filter: hue-rotate(210deg) saturate(1.35) brightness(1.07);
+}
+
+.character-sprite .character-img {
+  height:100%;
+  width:auto;
+  display:block;
+  object-fit:contain;
+}
+
+@keyframes idleSway {
+  /* 真·正弦式节奏：0→上→0→下→0，避免 50% 反向造成“卡一下” */
+  0%, 50%, 100% {
+    transform: translate3d(0,0,0) rotate(0deg);
+  }
+  12.5% {
+    transform: translate3d(0,calc(var(--idleAmp, 1.6px)/2),0) rotate(var(--idleRotSmall, 0.12deg));
+  }
+  25% {
+    transform: translate3d(0,var(--idleAmp, 1.6px),0) rotate(var(--idleRot, 0.22deg));
+  }
+  37.5% {
+    transform: translate3d(0,calc(var(--idleAmp, 1.6px)/2),0) rotate(var(--idleRotSmall, 0.12deg));
+  }
+  62.5% {
+    transform: translate3d(0,calc(var(--idleAmpNeg, -1.6px)/2),0) rotate(var(--idleRotSmallNeg, -0.12deg));
+  }
+  75% {
+    transform: translate3d(0,var(--idleAmpNeg, -1.6px),0) rotate(var(--idleRotNeg, -0.22deg));
+  }
+  87.5% {
+    transform: translate3d(0,calc(var(--idleAmpNeg, -1.6px)/2),0) rotate(var(--idleRotSmallNeg, -0.12deg));
+  }
+}
+
+/* 角色亮暗：非说话角色变暗 */
+.character-sprite.dimmed {
+  filter: brightness(0.45) saturate(0.6) drop-shadow(0 2px 12px rgba(0,0,0,0.3));
+}
+.character-sprite.speaking {
+  filter: brightness(1.05) drop-shadow(0 2px 16px rgba(240,198,116,0.15));
+}
+
+/* ====== Dialog Box ====== */
+#dialog-box {
+  position:absolute; bottom:0; left:0; width:100%;
+  min-height:180px;
+  background:linear-gradient(180deg,rgba(15,12,20,0.75),rgba(15,12,20,0.92));
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  border-top:1px solid rgba(255,255,255,0.08);
+  z-index:20; padding:14px 36px 24px;
+  cursor:pointer; display:flex; flex-direction:column;
+  opacity:0; transition:opacity 0.4s ease;
+}
+#dialog-box.visible { opacity:1; }
+
+#dialog-header {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;
+}
+
+#dialog-name {
+  font-size:17px; font-weight:700; color:#f0c674;
+  letter-spacing:1px; min-height:22px;
+}
+
+/* ====== Control Bar ====== */
+#control-bar {
+  display:flex; gap:6px; align-items:center;
+  pointer-events:auto;
+}
+
+.ctrl-btn {
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+  color:rgba(200,195,185,0.6); font-size:11px; padding:4px 10px;
+  border-radius:3px; cursor:pointer; letter-spacing:1px;
+  transition:all 0.2s ease; font-family:inherit;
+}
+.ctrl-btn:hover { color:#e8dcc8; border-color:rgba(255,255,255,0.25); background:rgba(255,255,255,0.08); }
+.ctrl-btn.active { color:#f0c674; border-color:rgba(240,198,116,0.4); background:rgba(240,198,116,0.1); }
+
+#dialog-text {
+  font-size:15.5px; line-height:1.75; color:#e8e4dc;
+  min-height:48px; white-space:pre-wrap; word-break:break-word;
+}
+
+#click-hint {
+  position:absolute; bottom:10px; right:28px;
+  color:rgba(255,255,255,0.35); font-size:13px;
+  animation:hintBlink 1.2s ease-in-out infinite;
+}
+@keyframes hintBlink { 0%,100%{opacity:0.3;} 50%{opacity:0.8;} }
+
+/* ====== Choices ====== */
+#choice-container {
+  display:flex; flex-direction:column; align-items:center;
+  gap:10px; margin-top:12px;
+}
+
+.choice-btn {
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15);
+  color:#e8e4dc; font-size:15px; padding:10px 32px; border-radius:6px;
+  cursor:pointer; min-width:240px; text-align:center;
+  transition:all 0.2s ease; letter-spacing:0.5px; font-family:inherit;
+}
+.choice-btn:hover { background:rgba(240,198,116,0.15); border-color:rgba(240,198,116,0.4); color:#f0c674; transform:translateY(-1px); }
+.choice-btn:active { transform:translateY(0); }
+
+/* ====== Overlay Panels ====== */
+.overlay {
+  position:absolute; inset:0; z-index:60;
+  background:rgba(0,0,0,0.7); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center;
+  transition:opacity 0.3s ease;
+}
+.overlay.hidden { opacity:0; pointer-events:none; }
+
+#settings-box, #log-box {
+  background:rgba(20,16,30,0.95); border:1px solid rgba(255,255,255,0.1);
+  border-radius:8px; padding:32px 40px; min-width:360px; max-width:440px;
+}
+#settings-box h2, #log-box h2 {
+  font-size:18px; color:#e0d8cc; letter-spacing:3px; margin-bottom:24px;
+  font-weight:400; text-align:center;
+}
+
+.setting-row {
+  display:flex; align-items:center; gap:12px; margin-bottom:16px;
+}
+.setting-row label {
+  font-size:13px; color:#a8a0b0; min-width:90px; text-align:right;
+}
+.setting-row input[type="range"] {
+  flex:1; height:3px; -webkit-appearance:none; appearance:none;
+  background:rgba(255,255,255,0.1); border-radius:2px; outline:none;
+}
+.setting-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+  background:#f0c674; cursor:pointer;
+}
+.setting-row input[type="range"]::-moz-range-thumb {
+  width:14px; height:14px; border-radius:50%;
+  background:#f0c674; border:none; cursor:pointer;
+}
+.vol-val { font-size:12px; color:#888; min-width:28px; text-align:center; }
+
+#settings-box .title-btn, #log-box .title-btn { margin-top:20px; width:100%; }
+
+/* 在设定面板里放多按钮时，用 panel-actions 统一排版 */
+.panel-actions {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:18px;
+}
+.panel-actions .title-btn {
+  margin-top:0 !important;
+  width:100%;
+}
+
+/* Log Panel */
+#log-content {
+  max-height:50vh; overflow-y:auto; margin-bottom:16px;
+  padding-right:8px;
+}
+#log-content::-webkit-scrollbar { width:3px; }
+#log-content::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
+
+.log-entry { margin-bottom:12px; }
+.log-entry .log-speaker { font-size:13px; color:#f0c674; margin-bottom:2px; }
+.log-entry .log-text { font-size:13px; color:#c8c0b8; line-height:1.6; white-space:pre-wrap; }
+
+/* ====== Loading Screen ====== */
+#loading-screen {
+  position:absolute; inset:0; background:#0a0a0f; z-index:100;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  transition:opacity 0.5s ease;
+}
+#loading-screen.hidden { opacity:0; pointer-events:none; }
+#loading-text { color:#a8a0b0; font-size:14px; letter-spacing:3px; }
+#loading-bar { width:240px; height:3px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+#loading-progress { width:0%; height:100%; background:linear-gradient(90deg,#f0c674,#e8a040); border-radius:2px; transition:width 0.3s ease; }
+
+/* ====== Responsive ====== */
+@media(max-width:768px){
+  #dialog-box { min-height:150px; padding:12px 18px 18px; }
+  #dialog-name { font-size:15px; }
+  #dialog-text { font-size:14px; }
+  .choice-btn { font-size:14px; padding:8px 20px; min-width:180px; }
+  #title-bar { font-size:13px; height:36px; }
+  #title-name { font-size:36px; letter-spacing:8px; }
+  .ctrl-btn { font-size:10px; padding:3px 7px; }
+  #settings-box, #log-box { min-width:280px; padding:24px 20px; }
+  .setting-row label { min-width:70px; font-size:12px; }
+}
+
+@media(max-width:480px){
+  #dialog-box { min-height:130px; padding:10px 14px 14px; }
+  .character-sprite { height:75%; }
+  #title-name { font-size:28px; }
+}
