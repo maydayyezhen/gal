@@ -15,5 +15,12 @@ window.CHAPTER1_SCENE_ORDER = [
   'scene_ch1_battle_continue',
   'scene_ch1_battle_win',
   'scene_ch1_battle_fumble',
-  'scene_ch1_after_battle'
+  'scene_ch1_after_battle',
+  'scene_ch1_promise',
+  'scene_ch1_hesitate2',
+  'scene_ch1_morning',
+  'scene_ch1_school_again',
+  'scene_ch1_school_again_2',
+  'scene_ch1_excuse',
+  'scene_ch1_ask_dream'
 ];
