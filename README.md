@@ -54,6 +54,8 @@ http://localhost:8000/editor.html
 ```text
 game_project/docs/architecture.md      # 当前架构、运行链路与目标分层
 game_project/docs/refactor-plan.md     # 分阶段重构计划与风险控制
+game_project/docs/script-format.md     # 章节、场景、对白、stage、choices 格式
+game_project/docs/resource-rules.md    # 图片、音频、角色、背景、道具、特效资源规则
 ```
 
 推荐先读 `architecture.md`，再按 `refactor-plan.md` 的顺序逐步整理。不要直接大规模移动文件，因为当前项目依赖纯静态 `<script>` 加载顺序。
@@ -111,7 +113,9 @@ game_project/
 │
 ├── docs/
 │   ├── architecture.md
-│   └── refactor-plan.md
+│   ├── refactor-plan.md
+│   ├── script-format.md
+│   └── resource-rules.md
 │
 └── archive/
     └── old_patches/
