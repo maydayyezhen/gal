@@ -1,0 +1,41 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE local files
+.idea/workspace.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/dataSources/
+.idea/dataSources.local.xml
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local server / temporary files
+.cache/
+.tmp/
+temp/
+tmp/
+
+# Build outputs, if build tools are added later
+dist/
+build/
+out/
+
+# Dependencies, if package management is added later
+node_modules/
+
+# Archive packages generated locally
+*.zip
+*.7z
+*.rar
+
+# Local backup files
+*.bak
+*.backup
+*.old
