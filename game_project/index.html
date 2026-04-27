@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galgame</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- 标题界面（独立页面，方便你单独设计） -->
+    <div id="title-screen">
+      <div id="title-bg"></div>
+      <div id="title-content">
+        <h1 id="title-name"></h1>
+        <p id="title-subtitle">— VISUAL NOVEL —</p>
+        <div id="title-menu">
+        <button class="title-btn is-hidden" id="btn-continue">继续游戏</button>
+          <button class="title-btn" id="btn-start">开始游戏</button>
+          <button class="title-btn" id="btn-settings-title">设定</button>
+          <button class="title-btn" id="btn-title-music">标题音乐：开</button>
+        </div>
+      </div>
+      <div id="title-footer">Click or Press Enter</div>
+    </div>
+
+    <!-- 设置面板（标题页也可调音量/速度，存到本地，进游戏沿用） -->
+    <div id="settings-panel" class="overlay hidden">
+      <div id="settings-box">
+        <h2>设定</h2>
+        <div class="setting-row">
+          <label>BGM 音量</label>
+          <input type="range" id="vol-bgm" min="0" max="100" value="40">
+          <span class="vol-val" id="vol-bgm-val">40</span>
+        </div>
+        <div class="setting-row">
+          <label>音效音量</label>
+          <input type="range" id="vol-se" min="0" max="100" value="60">
+          <span class="vol-val" id="vol-se-val">60</span>
+        </div>
+        <div class="setting-row">
+          <label>语音音量</label>
+          <input type="range" id="vol-voice" min="0" max="100" value="80">
+          <span class="vol-val" id="vol-voice-val">80</span>
+        </div>
+        <div class="setting-row">
+          <label>文字速度</label>
+          <input type="range" id="text-speed" min="10" max="80" value="35">
+          <span class="vol-val" id="text-speed-val">35</span>
+        </div>
+        <div class="setting-row">
+          <label>自动等待(秒)</label>
+          <input type="range" id="auto-wait" min="1" max="6" value="2" step="0.5">
+          <span class="vol-val" id="auto-wait-val">2.0</span>
+        </div>
+        <button class="title-btn" id="btn-settings-close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 章节系统 -->
+  <script src="scripts/chapterLoader.js"></script>
+  
+  <!-- 加载各章节剧本 -->
+  <script src="chapters/chapter1.js"></script>
+  <!-- 添加新章节时,在这里引入: -->
+  <!-- <script src="chapters/chapter2.js"></script> -->
+  
+  <!-- 合并章节数据供游戏系统使用 -->
+  <script>
+    // 从章节加载器获取合并后的剧本数据
+    var SCRIPT_DATA = chapterLoader.getMergedScriptData();
+    console.log('[index] Loaded chapters:', chapterLoader.getAvailableChapters());
+  </script>
+  
+  <script src="js/audio-generator.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/scriptLoader.js"></script>
+  <script src="js/title_music.js"></script>
+  <script src="js/title.js"></script>
+</body>
+</html>

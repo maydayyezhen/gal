@@ -1,0 +1,1176 @@
+/**
+ * effects.js - 特效系统
+ * 提供各种视觉特效，可在剧本中方便调用
+ */
+(function() {
+  var GG = window.GG = window.GG || {};
+  
+  // 特效容器
+  var effectLayer = null;
+  var particlesCanvas = null;
+  var particlesCtx = null;
+  
+  /**
+   * 初始化特效层
+   */
+  function initEffects() {
+    if (effectLayer) return;
+    
+    // 创建特效层（只覆盖“场景层”，不盖住 UI（对话框/按钮））
+    // 这样“全黑/闭眼”时，下面的文本框仍然可见。
+    var game = document.getElementById('game-container') || document.body;
+    var scene = document.getElementById('scene-layer') || game;
+
+    effectLayer = document.createElement('div');
+    effectLayer.id = 'effect-layer';
+    // 放在 scene-layer 内，层级高于背景/立绘/道具，但低于 dialog-box（z=20）
+    effectLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:8;';
+    scene.appendChild(effectLayer);
+    
+    // 创建粒子画布
+    particlesCanvas = document.createElement('canvas');
+    // 以容器尺寸为准（即便以后不是 100vw/100vh，也能对齐）
+    var rect = scene.getBoundingClientRect ? scene.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight };
+    particlesCanvas.width = Math.max(1, Math.floor(rect.width || window.innerWidth));
+    particlesCanvas.height = Math.max(1, Math.floor(rect.height || window.innerHeight));
+    particlesCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;';
+    effectLayer.appendChild(particlesCanvas);
+    particlesCtx = particlesCanvas.getContext('2d');
+  }
+
+
+// ===== 资源小助手：有PNG就用PNG，没有就退回CSS/Canvas（人类的容错一如既往要靠我补） =====
+function getRealImgSrc(id, fallbackPath) {
+  if (GG.getImage) {
+    var src = GG.getImage(id);
+    if (src && typeof src === 'string' && src.indexOf('data:image') !== 0) return src;
+  }
+  return fallbackPath || null;
+}
+
+function createFxImg(className, src, left, top, w, h) {
+  var img = document.createElement('img');
+  img.className = className || 'fx-img';
+  img.src = src;
+  img.style.left = left + 'px';
+  img.style.top = top + 'px';
+  img.style.width = w + 'px';
+  img.style.height = h + 'px';
+  return img;
+}
+
+function later(fn, delay) {
+  if (!delay) { fn(); return; }
+  setTimeout(fn, delay);
+}
+  
+  /**
+   * 震动效果
+   * @param {Object} options - {intensity: 强度(默认10), duration: 持续时间(默认500ms)}
+   */
+  function shake(options) {
+    options = options || {};
+    var intensity = options.intensity || 10;
+    var duration = options.duration || 500;
+    var gameScreen = GG.$('#game-container');
+    if (!gameScreen) return;
+    
+    var startTime = Date.now();
+    var originalTransform = gameScreen.style.transform || '';
+    
+    function animate() {
+      var elapsed = Date.now() - startTime;
+      if (elapsed >= duration) {
+        gameScreen.style.transform = originalTransform;
+        return;
+      }
+      
+      var progress = 1 - elapsed / duration;
+      var x = (Math.random() - 0.5) * intensity * progress;
+      var y = (Math.random() - 0.5) * intensity * progress;
+      gameScreen.style.transform = originalTransform + ' translate(' + x + 'px, ' + y + 'px)';
+      
+      requestAnimationFrame(animate);
+    }
+    
+    animate();
+  }
+  
+  /**
+   * 闪光效果
+   * @param {Object} options - {color: 颜色(默认白色), duration: 持续时间(默认300ms)}
+   */
+  function flash(options) {
+    initEffects();
+    options = options || {};
+    var color = options.color || '#ffffff';
+    var duration = options.duration || 300;
+    
+    var flashDiv = document.createElement('div');
+    flashDiv.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:' + color + ';opacity:0.8;';
+    effectLayer.appendChild(flashDiv);
+    
+    setTimeout(function() {
+      flashDiv.style.transition = 'opacity ' + (duration / 2) + 'ms';
+      flashDiv.style.opacity = '0';
+      setTimeout(function() {
+        effectLayer.removeChild(flashDiv);
+      }, duration / 2);
+    }, 50);
+  }
+  
+  /**
+   * 粒子效果（萤火虫、星星、花瓣等）
+   * @param {Object} options - {type: 类型, count: 数量, duration: 持续时间}
+   */
+  function particles(options) {
+    initEffects();
+    options = options || {};
+    var type = options.type || 'sparkle'; // sparkle, snow, petals, magic
+    var count = options.count || 30;
+    var duration = options.duration || 3000;
+    
+    var parts = [];
+    for (var i = 0; i < count; i++) {
+      parts.push({
+        x: Math.random() * particlesCanvas.width,
+        y: Math.random() * particlesCanvas.height,
+        vx: (Math.random() - 0.5) * 2,
+        vy: Math.random() * 2 + 1,
+        size: Math.random() * 4 + 2,
+        alpha: Math.random() * 0.5 + 0.5,
+        color: getParticleColor(type)
+      });
+    }
+    
+    var startTime = Date.now();
+    
+    function animate() {
+      var elapsed = Date.now() - startTime;
+      if (elapsed >= duration) {
+        particlesCtx.clearRect(0, 0, particlesCanvas.width, particlesCanvas.height);
+        return;
+      }
+      
+      particlesCtx.clearRect(0, 0, particlesCanvas.width, particlesCanvas.height);
+      
+      parts.forEach(function(p) {
+        p.x += p.vx;
+        p.y += p.vy;
+        
+        // 循环
+        if (p.y > particlesCanvas.height) p.y = 0;
+        if (p.x < 0) p.x = particlesCanvas.width;
+        if (p.x > particlesCanvas.width) p.x = 0;
+        
+        particlesCtx.globalAlpha = p.alpha;
+        particlesCtx.fillStyle = p.color;
+        particlesCtx.beginPath();
+        particlesCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        particlesCtx.fill();
+      });
+      
+      requestAnimationFrame(animate);
+    }
+    
+    animate();
+  }
+  
+  function getParticleColor(type) {
+    switch (type) {
+      case 'sparkle': return '#70d0ff';
+      case 'snow': return '#ffffff';
+      case 'petals': return '#ffb0d0';
+      case 'magic': return '#d080ff';
+      default: return '#ffffff';
+    }
+  }
+  
+  
+  // ====== 定位到某个立绘的屏幕坐标（用于“魔法/受击”局部特效） ======
+  function findSpriteByKey(key) {
+    if (!key) return null;
+    var sprites = GG.$$('.character-sprite');
+    for (var i = 0; i < sprites.length; i++) {
+      var cid = sprites[i].dataset.charId || '';
+      if (cid.indexOf(key) >= 0) return sprites[i];
+    }
+    return null;
+  }
+
+  function getPointOnSprite(key, anchor) {
+    var el = findSpriteByKey(key);
+    anchor = anchor || { x: 0.5, y: 0.42 };
+    if (!el) {
+      return { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, el: null };
+    }
+    var rect = el.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width * (anchor.x == null ? 0.5 : anchor.x),
+      y: rect.top + rect.height * (anchor.y == null ? 0.42 : anchor.y),
+      el: el,
+      rect: rect
+    };
+  }
+
+  function spawnSparkBurst(x, y, options) {
+    initEffects();
+    options = options || {};
+    var count = options.count || 18;
+    var color = options.color || '#d080ff';
+    var spread = options.spread || 90;
+    var duration = options.duration || 520;
+    var sizeMin = options.sizeMin || 3;
+    var sizeMax = options.sizeMax || 8;
+
+    for (var i = 0; i < count; i++) {
+      var d = document.createElement('div');
+      d.className = 'fx-spark';
+      var size = sizeMin + Math.random() * (sizeMax - sizeMin);
+      d.style.width = size + 'px';
+      d.style.height = size + 'px';
+      d.style.left = (x - size / 2) + 'px';
+      d.style.top = (y - size / 2) + 'px';
+      d.style.background = color;
+      effectLayer.appendChild(d);
+
+      var ang = Math.random() * Math.PI * 2;
+      var dist = (Math.random() * 0.6 + 0.4) * spread;
+      var tx = Math.cos(ang) * dist;
+      var ty = Math.sin(ang) * dist;
+
+      try {
+        var a = d.animate([
+          { transform: 'translate(0px, 0px) scale(1)', opacity: 0.95 },
+          { transform: 'translate(' + tx + 'px, ' + ty + 'px) scale(0.3)', opacity: 0 }
+        ], { duration: duration, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' });
+        a.onfinish = (function(node){
+          return function(){ if (node && node.parentNode) node.parentNode.removeChild(node); };
+        })(d);
+      } catch (e) {
+        setTimeout((function(node){ return function(){ if (node && node.parentNode) node.parentNode.removeChild(node); }; })(d), duration);
+      }
+    }
+  }
+
+  // ====== 新增：魔法施法/光束/受击（局部） ======
+
+function spell(options) {
+  initEffects();
+  options = options || {};
+  var caster = options.caster || 'princess';
+  var color = options.color || '#d080ff';
+  var duration = options.duration || 650;
+  var size = options.size || 160;
+  var delay = options.delay || 0;
+  // 手部附近（略偏右上）
+  var p = getPointOnSprite(caster, options.anchor || { x: 0.68, y: 0.42 });
+
+  var magicSrc = getRealImgSrc('fx_magic_circle');
+
+  // 主体：优先用 magic_circle.png；没有就退回 CSS 圈
+  if (magicSrc) {
+    var s = Math.max(140, size * 1.9);
+    var img = createFxImg('fx-img fx-magic-circle-img', magicSrc, p.x - s / 2, p.y - s / 2, s, s);
+    img.style.opacity = '0';
+    effectLayer.appendChild(img);
+
+    later(function () {
+      try {
+        img.animate([
+          { transform: 'scale(0.55) rotate(0deg)', opacity: 0 },
+          { transform: 'scale(1) rotate(120deg)', opacity: 0.92 },
+          { transform: 'scale(1.18) rotate(260deg)', opacity: 0 }
+        ], { duration: duration, easing: 'ease-out', fill: 'forwards' }).onfinish = function () {
+          if (img && img.parentNode) img.parentNode.removeChild(img);
+        };
+      } catch (e) {
+        setTimeout(function () { if (img && img.parentNode) img.parentNode.removeChild(img); }, duration + 60);
+      }
+    }, delay);
+
+  } else {
+    var ring = document.createElement('div');
+    ring.className = 'fx-magic-ring';
+    ring.style.left = (p.x - size / 2) + 'px';
+    ring.style.top = (p.y - size / 2) + 'px';
+    ring.style.width = size + 'px';
+    ring.style.height = size + 'px';
+    ring.style.borderColor = color;
+    ring.style.boxShadow = '0 0 18px ' + color + '66, 0 0 40px ' + color + '33';
+    effectLayer.appendChild(ring);
+
+    later(function () {
+      try {
+        ring.animate([
+          { transform: 'scale(0.6) rotate(0deg)', opacity: 0 },
+          { transform: 'scale(1) rotate(110deg)', opacity: 0.9 },
+          { transform: 'scale(1.15) rotate(220deg)', opacity: 0 }
+        ], { duration: duration, easing: 'ease-out', fill: 'forwards' }).onfinish = function () {
+          if (ring && ring.parentNode) ring.parentNode.removeChild(ring);
+        };
+      } catch (e) {
+        setTimeout(function () { if (ring && ring.parentNode) ring.parentNode.removeChild(ring); }, duration + 60);
+      }
+    }, delay);
+  }
+
+  // 火花
+  later(function () {
+    spawnSparkBurst(p.x, p.y, {
+      count: options.count || 20,
+      color: color,
+      spread: options.spread || 95,
+      duration: Math.max(420, duration - 80)
+    });
+  }, delay);
+}
+
+function beam(options) {
+  initEffects();
+  options = options || {};
+  var fromKey = options.from || 'princess';
+  var toKey = options.to || options.target || 'homework_slime';
+  var color = options.color || '#d080ff';
+  var duration = options.duration || 360;
+  var width = options.width || 8;
+  var delay = options.delay || 0;
+
+  var a = getPointOnSprite(fromKey, options.fromAnchor || { x: 0.70, y: 0.42 });
+  var b = getPointOnSprite(toKey, options.toAnchor || { x: 0.50, y: 0.48 });
+
+  var dx = b.x - a.x;
+  var dy = b.y - a.y;
+  var len = Math.sqrt(dx * dx + dy * dy);
+  var angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+  var beamSrc = getRealImgSrc('fx_beam');
+
+  if (beamSrc) {
+    var h = Math.max(26, width * 7);
+    var img = createFxImg('fx-img fx-beam-img', beamSrc, a.x, a.y, len, h);
+    img.style.transformOrigin = '0 50%';
+    img.style.opacity = '0';
+    img.style.transform = 'translateY(-50%) rotate(' + angle + 'deg)';
+    effectLayer.appendChild(img);
+
+    later(function () {
+      try {
+        img.animate([
+          { opacity: 0, transform: 'translateY(-50%) rotate(' + angle + 'deg) scaleX(0.12)' },
+          { opacity: 1, transform: 'translateY(-50%) rotate(' + angle + 'deg) scaleX(1)' },
+          { opacity: 0, transform: 'translateY(-50%) rotate(' + angle + 'deg) scaleX(1)' }
+        ], { duration: duration, easing: 'ease-out', fill: 'forwards' }).onfinish = function () {
+          if (img && img.parentNode) img.parentNode.removeChild(img);
+        };
+      } catch (e) {
+        setTimeout(function () { if (img && img.parentNode) img.parentNode.removeChild(img); }, duration + 60);
+      }
+    }, delay);
+
+  } else {
+    var line = document.createElement('div');
+    line.className = 'fx-beam';
+    line.style.left = a.x + 'px';
+    line.style.top = (a.y - width / 2) + 'px';
+    line.style.width = len + 'px';
+    line.style.height = width + 'px';
+    line.style.background = 'linear-gradient(90deg, ' + color + '00, ' + color + 'cc, ' + color + '00)';
+    line.style.filter = 'blur(0.3px) drop-shadow(0 0 10px ' + color + '88)';
+    line.style.transformOrigin = '0 50%';
+    line.style.transform = 'rotate(' + angle + 'deg)';
+    effectLayer.appendChild(line);
+
+    later(function () {
+      try {
+        line.animate([
+          { opacity: 0, transform: 'rotate(' + angle + 'deg) scaleX(0.2)' },
+          { opacity: 1, transform: 'rotate(' + angle + 'deg) scaleX(1)' },
+          { opacity: 0, transform: 'rotate(' + angle + 'deg) scaleX(1)' }
+        ], { duration: duration, easing: 'ease-out', fill: 'forwards' }).onfinish = function () {
+          if (line && line.parentNode) line.parentNode.removeChild(line);
+        };
+      } catch (e) {
+        setTimeout(function () { if (line && line.parentNode) line.parentNode.removeChild(line); }, duration + 60);
+      }
+    }, delay);
+  }
+}
+
+function hit(options) {
+  initEffects();
+  options = options || {};
+  var targetKey = options.target || options.to || 'homework_slime';
+  var color = options.color || '#70d0ff';
+  var duration = options.duration || 420;
+  var size = options.size || 120;
+  var delay = options.delay || 0;
+  var p = getPointOnSprite(targetKey, options.anchor || { x: 0.55, y: 0.50 });
+
+  var ringSrc = getRealImgSrc('fx_impact_ring');
+  var sparkSrc = getRealImgSrc('fx_hit_spark');
+
+  later(function () {
+    // 冲击环：优先用 impact_ring.png
+    if (ringSrc) {
+      var s = Math.max(110, size * 1.9);
+      var img = createFxImg('fx-img fx-hit-ring-img', ringSrc, p.x - s / 2, p.y - s / 2, s, s);
+      img.style.opacity = '0.95';
+      img.style.transform = 'rotate(' + ((Math.random() - 0.5) * 18) + 'deg)';
+      effectLayer.appendChild(img);
+      try {
+        img.animate([
+          { transform: img.style.transform + ' scale(0.35)', opacity: 0.95 },
+          { transform: img.style.transform + ' scale(1.05)', opacity: 0.60 },
+          { transform: img.style.transform + ' scale(1.35)', opacity: 0 }
+        ], { duration: duration, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' }).onfinish = function () {
+          if (img && img.parentNode) img.parentNode.removeChild(img);
+        };
+      } catch (e) {
+        setTimeout(function () { if (img && img.parentNode) img.parentNode.removeChild(img); }, duration + 60);
+      }
+    } else {
+      var ring = document.createElement('div');
+      ring.className = 'fx-hit-ring';
+      ring.style.left = (p.x - size / 2) + 'px';
+      ring.style.top = (p.y - size / 2) + 'px';
+      ring.style.width = size + 'px';
+      ring.style.height = size + 'px';
+      ring.style.borderColor = color;
+      ring.style.boxShadow = '0 0 16px ' + color + '66';
+      effectLayer.appendChild(ring);
+      try {
+        ring.animate([
+          { transform: 'scale(0.35)', opacity: 0.95 },
+          { transform: 'scale(1.05)', opacity: 0.6 },
+          { transform: 'scale(1.35)', opacity: 0 }
+        ], { duration: duration, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' }).onfinish = function () {
+          if (ring && ring.parentNode) ring.parentNode.removeChild(ring);
+        };
+      } catch (e) {
+        setTimeout(function () { if (ring && ring.parentNode) ring.parentNode.removeChild(ring); }, duration + 60);
+      }
+    }
+
+    // 火花：有 hit_spark.png 就用贴图散射
+    if (sparkSrc) {
+      var n = Math.min(18, options.count || 14);
+      for (var i = 0; i < n; i++) {
+        var w = 18 + Math.random() * 22;
+        var img2 = createFxImg('fx-img fx-hit-spark-img', sparkSrc, p.x - w / 2, p.y - w / 2, w, w);
+        img2.style.opacity = '0.95';
+        img2.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+        effectLayer.appendChild(img2);
+        (function (node) {
+          var ang = Math.random() * Math.PI * 2;
+          var dist = 55 + Math.random() * (options.spread || 85);
+          var tx = Math.cos(ang) * dist;
+          var ty = Math.sin(ang) * dist;
+          try {
+            node.animate([
+              { transform: node.style.transform + ' translate(0px,0px) scale(0.7)', opacity: 0.85 },
+              { transform: node.style.transform + ' translate(' + tx + 'px,' + ty + 'px) scale(1.2)', opacity: 0 }
+            ], { duration: Math.max(280, duration - 80), easing: 'ease-out', fill: 'forwards', delay: Math.random() * 70 }).onfinish = function () {
+              if (node && node.parentNode) node.parentNode.removeChild(node);
+            };
+          } catch (e) {
+            setTimeout(function () { if (node && node.parentNode) node.parentNode.removeChild(node); }, duration + 120);
+          }
+        })(img2);
+      }
+    } else {
+      spawnSparkBurst(p.x, p.y, { count: options.count || 14, color: color, spread: options.spread || 85, duration: Math.max(320, duration - 80), sizeMin: 2, sizeMax: 7 });
+    }
+  }, delay);
+}
+
+// paperVanish：试卷/作业纸被“蒸发”的一瞬（用你新生成的 paper_* 贴图）
+function paperVanish(options) {
+  initEffects();
+  options = options || {};
+  var targetKey = options.target || 'homework_slime';
+  var variant = options.variant || 'stack'; // stack | sheet
+  var duration = options.duration || 420;
+  var size = options.size || 180;
+  var delay = options.delay || 0;
+  var p = getPointOnSprite(targetKey, options.anchor || { x: 0.56, y: 0.48 });
+
+  var id = (variant === 'sheet') ? 'fx_paper_sheet' : 'fx_paper_stack';
+  var src = getRealImgSrc(id);
+
+  later(function () {
+    if (!src) {
+      // 没贴图就别硬演了，给点白色粒子当补救
+      spawnSparkBurst(p.x, p.y, { count: 14, color: '#ffffff', spread: 90, duration: Math.max(280, duration - 60) });
+      return;
+    }
+
+    var w = Math.max(120, size);
+    var img = createFxImg('fx-img fx-paper-img', src, p.x - w / 2, p.y - w / 2, w, w);
+    img.style.opacity = '0.95';
+    img.style.transform = 'rotate(' + ((Math.random() - 0.5) * 12) + 'deg)';
+    effectLayer.appendChild(img);
+
+    // 小碎纸
+
+    try {
+      img.animate([
+        { transform: img.style.transform + ' scale(1)', opacity: 0.95, filter: 'blur(0px)' },
+        { transform: img.style.transform + ' scale(1.05)', opacity: 0.9, filter: 'blur(0px)' },
+        { transform: img.style.transform + ' scale(0.75)', opacity: 0, filter: 'blur(1.2px)' }
+      ], { duration: duration, easing: 'cubic-bezier(0.18,0.9,0.2,1)', fill: 'forwards' }).onfinish = function () {
+        if (img && img.parentNode) img.parentNode.removeChild(img);
+      };
+    } catch (e) {
+      setTimeout(function () { if (img && img.parentNode) img.parentNode.removeChild(img); }, duration + 60);
+    }
+
+    // 纸屑飞散
+    var shSrc = getRealImgSrc('fx_paper_sheet') || src;
+    var n = 8;
+    for (var i = 0; i < n; i++) {
+      var s2 = 26 + Math.random() * 22;
+      var bit = createFxImg('fx-img fx-paper-bit-img', shSrc, p.x - s2 / 2, p.y - s2 / 2, s2, s2);
+      bit.style.opacity = '0.85';
+      bit.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+      effectLayer.appendChild(bit);
+      (function (node) {
+        var ang = Math.random() * Math.PI * 2;
+        var dist = 70 + Math.random() * 90;
+        var tx = Math.cos(ang) * dist;
+        var ty = Math.sin(ang) * dist;
+        try {
+          node.animate([
+            { transform: node.style.transform + ' translate(0px,0px) scale(0.6)', opacity: 0.7 },
+            { transform: node.style.transform + ' translate(' + tx + 'px,' + ty + 'px) scale(1.0)', opacity: 0 }
+          ], { duration: Math.max(260, duration - 80), easing: 'ease-out', fill: 'forwards', delay: Math.random() * 60 }).onfinish = function () {
+            if (node && node.parentNode) node.parentNode.removeChild(node);
+          };
+        } catch (e) {
+          setTimeout(function () { if (node && node.parentNode) node.parentNode.removeChild(node); }, duration + 120);
+        }
+      })(bit);
+    }
+  }, delay);
+}
+
+// 消散烟雾（可选）：用于怪物消失那句（可选）：用于怪物消失那句
+  function puff(options) {
+    initEffects();
+    options = options || {};
+    var targetKey = options.target || 'homework_slime';
+    var color = options.color || '#ffb0d0';
+    var duration = options.duration || 520;
+    var p = getPointOnSprite(targetKey, options.anchor || { x: 0.55, y: 0.55 });
+    var count = options.count || 8;
+
+    for (var i = 0; i < count; i++) {
+      var b = document.createElement('div');
+      b.className = 'fx-smoke';
+      var size = 28 + Math.random() * 40;
+      b.style.width = size + 'px';
+      b.style.height = size + 'px';
+      b.style.left = (p.x - size / 2 + (Math.random()-0.5)*30) + 'px';
+      b.style.top = (p.y - size / 2 + (Math.random()-0.5)*24) + 'px';
+      b.style.background = color;
+      effectLayer.appendChild(b);
+
+      var tx = (Math.random()-0.5) * 80;
+      var ty = - (40 + Math.random() * 60);
+      try {
+        var a = b.animate([
+          { transform: 'translate(0px,0px) scale(0.7)', opacity: 0.5 },
+          { transform: 'translate(' + tx + 'px,' + ty + 'px) scale(1.2)', opacity: 0 }
+        ], { duration: duration, easing: 'ease-out', fill: 'forwards' });
+        a.onfinish = (function(node){ return function(){ if (node && node.parentNode) node.parentNode.removeChild(node); }; })(b);
+      } catch (e) {
+        setTimeout((function(node){ return function(){ if (node && node.parentNode) node.parentNode.removeChild(node); }; })(b), duration + 40);
+      }
+    }
+  }
+
+  // ====== 新增：睡觉/醒来/睁眼（全屏氛围） ======
+  // sleep: 轻微变暗 + Zzz 漂浮（不强制黑屏，避免抢转场）
+
+function sleep(options) {
+  initEffects();
+  options = options || {};
+  var duration = options.duration || 900;
+  var hold = options.hold || 0; // 结束后是否停留暗场（ms）
+  // 让“慢慢变暗/慢慢变亮”可控：默认保持原来的节奏
+  var fadeIn = (options.fadeIn != null) ? options.fadeIn : 260;
+  var fadeOut = (options.fadeOut != null) ? options.fadeOut : 360;
+  var strength = options.strength || 0.55;
+  var zCount = options.zCount || 7;
+  var zColor = options.zColor || 'rgba(255,255,255,0.22)';
+  var delay = options.delay || 0;
+
+  var bokehSrc = getRealImgSrc('fx_dream_bokeh');
+  var zzzSrc = getRealImgSrc('fx_zzz');
+
+  var overlay = document.createElement('div');
+  overlay.className = 'fx-sleep-overlay';
+  overlay.style.opacity = '0';
+
+  if (bokehSrc) {
+    overlay.style.backgroundImage =
+      'radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0.0) 0%, rgba(0,0,0,' + (strength * 0.85) + ') 70%, rgba(0,0,0,' + strength + ') 100%), url(' + bokehSrc + ')';
+    overlay.style.backgroundSize = 'cover, cover';
+    overlay.style.backgroundPosition = 'center, center';
+    overlay.style.filter = 'saturate(1.05)';
+  } else {
+    overlay.style.background =
+      'radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0.0) 0%, rgba(0,0,0,' + (strength * 0.85) + ') 70%, rgba(0,0,0,' + strength + ') 100%)';
+  }
+
+  effectLayer.appendChild(overlay);
+
+  // 轻微模糊/变暗（只在游戏画面层）
+  var gameScreen = GG.$('#game-container');
+  var oldFilter = gameScreen ? (gameScreen.style.filter || '') : '';
+  if (gameScreen) {
+    gameScreen.style.transition = 'filter ' + Math.max(180, Math.min(2400, fadeIn)) + 'ms ease';
+    gameScreen.style.filter = (oldFilter ? oldFilter + ' ' : '') + 'blur(0.6px) brightness(0.92)';
+  }
+
+  // Zzz：优先贴图 zzz.png
+  var zNodes = [];
+  for (var i = 0; i < zCount; i++) {
+    var x = window.innerWidth * (0.62 + Math.random() * 0.28);
+    var y = window.innerHeight * (0.62 + Math.random() * 0.20);
+
+    var node;
+    if (zzzSrc) {
+      var s = 42 + Math.random() * 34;
+      node = createFxImg('fx-img fx-zzz-img', zzzSrc, x, y, s, s);
+      node.style.opacity = '0';
+    } else {
+      node = document.createElement('div');
+      node.className = 'fx-zzz';
+      node.textContent = (i % 3 === 0) ? 'Z' : (i % 3 === 1 ? 'z' : 'Z');
+      node.style.color = zColor;
+      node.style.left = x + 'px';
+      node.style.top = y + 'px';
+      node.style.fontSize = (18 + Math.random() * 16) + 'px';
+    }
+
+    effectLayer.appendChild(node);
+    zNodes.push(node);
+
+    (function (n) {
+      var tx = (Math.random() - 0.5) * 90;
+      var ty = - (120 + Math.random() * 80);
+      var rot = (Math.random() - 0.5) * 30;
+      var base = (zzzSrc ? ('rotate(' + rot + 'deg) ') : '');
+      try {
+        n.animate([
+          { transform: base + 'translate(0px,0px) rotate(0deg)', opacity: 0 },
+          { transform: base + 'translate(' + (tx * 0.2) + 'px,' + (ty * 0.2) + 'px) rotate(' + rot + 'deg)', opacity: 0.65 },
+          { transform: base + 'translate(' + tx + 'px,' + ty + 'px) rotate(' + (rot * 1.2) + 'deg)', opacity: 0 }
+        ], { duration: duration, easing: 'ease-out', fill: 'forwards', delay: Math.random() * 140 }).onfinish = function () {
+          if (n && n.parentNode) n.parentNode.removeChild(n);
+        };
+      } catch (e) {
+        setTimeout(function () { if (n && n.parentNode) n.parentNode.removeChild(n); }, duration + 200);
+      }
+    })(node);
+  }
+
+  // overlay 淡入/淡出
+  later(function () {
+    try {
+      overlay.animate([{ opacity: 0 }, { opacity: 1 }], { duration: fadeIn, easing: 'ease-out', fill: 'forwards' }).onfinish = function () {
+        setTimeout(function () {
+          try {
+            overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: fadeOut, easing: 'ease-in', fill: 'forwards' }).onfinish = function () {
+              if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            };
+          } catch (e) {
+            overlay.style.opacity = '0';
+            setTimeout(function () { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }, fadeOut + 40);
+          }
+
+          // 恢复滤镜
+          if (gameScreen) {
+            setTimeout(function () {
+              gameScreen.style.filter = oldFilter;
+              setTimeout(function () { gameScreen.style.transition = ''; }, Math.max(220, Math.min(2600, fadeOut)));
+            }, 10);
+          }
+        }, hold);
+      };
+    } catch (e) {
+      overlay.style.opacity = '1';
+      setTimeout(function () {
+        overlay.style.transition = 'opacity ' + fadeOut + 'ms ease-in';
+        overlay.style.opacity = '0';
+        setTimeout(function () { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }, fadeOut + 40);
+        if (gameScreen) gameScreen.style.filter = oldFilter;
+      }, duration);
+    }
+  }, delay);
+}
+
+// wake: 从暗到清醒的小“光晕”与清晰化（不覆盖转场）
+
+function wake(options) {
+  initEffects();
+  options = options || {};
+  var duration = options.duration || 780;
+  var color = options.color || 'rgba(240,198,116,0.22)';
+  var delay = options.delay || 0;
+
+  var glowSrc = getRealImgSrc('fx_eye_glow');
+
+  var overlay = document.createElement('div');
+  overlay.className = 'fx-wake-overlay';
+  overlay.style.opacity = '0';
+  overlay.style.background =
+    'radial-gradient(ellipse at 50% 40%, ' + color + ' 0%, rgba(0,0,0,0) 62%), radial-gradient(ellipse at 50% 55%, rgba(255,255,255,0.12) 0%, rgba(0,0,0,0) 55%)';
+  effectLayer.appendChild(overlay);
+
+  var glow = null;
+  if (glowSrc) {
+    var s = Math.min(window.innerWidth, window.innerHeight) * 0.48;
+    glow = createFxImg('fx-img fx-eye-glow-img', glowSrc, window.innerWidth / 2 - s / 2, window.innerHeight * 0.42 - s / 2, s, s);
+    glow.style.opacity = '0';
+    effectLayer.appendChild(glow);
+  }
+
+  var gameScreen = GG.$('#game-container');
+  var oldFilter = gameScreen ? (gameScreen.style.filter || '') : '';
+  if (gameScreen) {
+    gameScreen.style.transition = 'filter 240ms ease';
+    gameScreen.style.filter = (oldFilter ? oldFilter + ' ' : '') + 'blur(1.2px) brightness(0.92)';
+    setTimeout(function () {
+      gameScreen.style.filter = oldFilter;
+    }, 260);
+  }
+
+  // 小光尘
+  spawnSparkBurst(window.innerWidth * 0.5, window.innerHeight * 0.42, {
+    count: options.count || 16,
+    color: options.sparkColor || '#f0c674',
+    spread: options.spread || 120,
+    duration: Math.min(620, duration)
+  });
+
+  later(function () {
+    try {
+      overlay.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }], { duration: duration, easing: 'ease-out', fill: 'forwards' }).onfinish = function () {
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      };
+    } catch (e) {
+      overlay.style.opacity = '1';
+      setTimeout(function () {
+        overlay.style.opacity = '0';
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, duration);
+    }
+
+    if (glow) {
+      try {
+        glow.animate([
+          { opacity: 0, transform: 'scale(0.88)' },
+          { opacity: 0.85, transform: 'scale(1)' },
+          { opacity: 0, transform: 'scale(1.06)' }
+        ], { duration: Math.min(720, duration), easing: 'ease-out', fill: 'forwards' }).onfinish = function () {
+          if (glow && glow.parentNode) glow.parentNode.removeChild(glow);
+        };
+      } catch (e) {
+        setTimeout(function () { if (glow && glow.parentNode) glow.parentNode.removeChild(glow); }, duration + 60);
+      }
+    }
+  }, delay);
+}
+
+// eyeClose: 上下眼皮合上（适合“闭上眼”/梦境切换）
+  // 支持 persist=true：合上后不移除，让下一句/下一场景再用 eyeOpen 打开
+  function eyeClose(options) {
+    initEffects();
+    options = options || {};
+    var duration = options.duration || 520;
+    var hold = options.hold || 0;
+    var persist = !!options.persist;
+    var blur = options.blur || 0;
+
+    var wrap = document.getElementById('fx-eye-wrap');
+    var top, bottom;
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.className = 'fx-eye-wrap';
+      wrap.id = 'fx-eye-wrap';
+      effectLayer.appendChild(wrap);
+
+      top = document.createElement('div');
+      top.className = 'fx-eyelid top';
+      bottom = document.createElement('div');
+      bottom.className = 'fx-eyelid bottom';
+      wrap.appendChild(top);
+      wrap.appendChild(bottom);
+    } else {
+      top = wrap.querySelector('.fx-eyelid.top');
+      bottom = wrap.querySelector('.fx-eyelid.bottom');
+    }
+    if (!top || !bottom) return;
+
+    // 从“张开”开始合上，避免偶发的 loop 跳变
+    top.style.transform = 'translateY(-100%)';
+    bottom.style.transform = 'translateY(100%)';
+
+    // 合眼时给一点点轻微模糊（可选）
+    var gameScreen = GG.$('#game-container');
+    var oldFilter = gameScreen ? (gameScreen.style.filter || '') : '';
+    if (gameScreen && blur) {
+      gameScreen.style.transition = 'filter 180ms ease';
+      gameScreen.style.filter = (oldFilter ? oldFilter + ' ' : '') + 'blur(' + blur + 'px) brightness(0.95)';
+      setTimeout(function () {
+        gameScreen.style.filter = oldFilter;
+        setTimeout(function () { gameScreen.style.transition = ''; }, 220);
+      }, Math.min(240, duration));
+    }
+
+    function removeWrap() {
+      if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    }
+
+    try {
+      top.animate([{ transform: 'translateY(-100%)' }, { transform: 'translateY(0%)' }], {
+        duration: duration,
+        easing: 'cubic-bezier(0.2,0.8,0.2,1)',
+        fill: 'forwards'
+      });
+      bottom.animate([{ transform: 'translateY(100%)' }, { transform: 'translateY(0%)' }], {
+        duration: duration,
+        easing: 'cubic-bezier(0.2,0.8,0.2,1)',
+        fill: 'forwards'
+      }).onfinish = function () {
+        if (!persist) setTimeout(removeWrap, hold);
+      };
+    } catch (e) {
+      top.style.transform = 'translateY(0%)';
+      bottom.style.transform = 'translateY(0%)';
+      if (!persist) setTimeout(removeWrap, duration + hold + 40);
+    }
+  }
+
+  // eyeOpen: 上下眼皮打开（适合“睁开眼”那一句）
+  // 支持 hold：先保持全黑一会儿，再打开（用于“从梦醒来：先黑屏再睁眼”）
+  function eyeOpen(options) {
+    initEffects();
+    options = options || {};
+    var duration = options.duration || 520;
+    var blur = options.blur || 1.2;
+    var hold = options.hold || 0;
+
+    var wrap = document.getElementById('fx-eye-wrap');
+    var top, bottom;
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.className = 'fx-eye-wrap';
+      wrap.id = 'fx-eye-wrap';
+      effectLayer.appendChild(wrap);
+
+      top = document.createElement('div');
+      top.className = 'fx-eyelid top';
+      bottom = document.createElement('div');
+      bottom.className = 'fx-eyelid bottom';
+      wrap.appendChild(top);
+      wrap.appendChild(bottom);
+    } else {
+      top = wrap.querySelector('.fx-eyelid.top');
+      bottom = wrap.querySelector('.fx-eyelid.bottom');
+    }
+    if (!top || !bottom) return;
+
+    // 先确保是“合上”的状态（全黑）
+    top.style.transform = 'translateY(0%)';
+    bottom.style.transform = 'translateY(0%)';
+
+    var gameScreen = GG.$('#game-container');
+    var oldFilter = gameScreen ? (gameScreen.style.filter || '') : '';
+    if (gameScreen) {
+      gameScreen.style.transition = 'filter 200ms ease';
+      gameScreen.style.filter = (oldFilter ? oldFilter + ' ' : '') + 'blur(' + blur + 'px) brightness(0.95)';
+      setTimeout(function () {
+        gameScreen.style.filter = oldFilter;
+        setTimeout(function () { gameScreen.style.transition = ''; }, 260);
+      }, 240);
+    }
+
+    function openNow() {
+      try {
+        top.animate([{ transform: 'translateY(0%)' }, { transform: 'translateY(-100%)' }], {
+          duration: duration,
+          easing: 'cubic-bezier(0.2,0.8,0.2,1)',
+          fill: 'forwards'
+        });
+        bottom.animate([{ transform: 'translateY(0%)' }, { transform: 'translateY(100%)' }], {
+          duration: duration,
+          easing: 'cubic-bezier(0.2,0.8,0.2,1)',
+          fill: 'forwards'
+        }).onfinish = function () {
+          if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
+        };
+      } catch (e) {
+        top.style.transform = 'translateY(-100%)';
+        bottom.style.transform = 'translateY(100%)';
+        setTimeout(function () { if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap); }, duration + 40);
+      }
+    }
+
+    if (hold > 0) setTimeout(openNow, hold);
+    else openNow();
+  }
+
+  // ripple: 鼠标/触摸点击波纹（给你一点“我真的在点击游戏”的错觉）
+
+  function ripple(options) {
+    initEffects();
+    options = options || {};
+    var x = (options.x != null) ? options.x : (window.innerWidth / 2);
+    var y = (options.y != null) ? options.y : (window.innerHeight / 2);
+    var duration = options.duration || 520;
+    var size = options.size || Math.max(90, Math.min(240, Math.min(window.innerWidth, window.innerHeight) * 0.22));
+    var color = options.color || 'rgba(255,255,255,0.38)';
+
+    var ringSrc = getRealImgSrc('fx_impact_ring');
+
+    if (ringSrc) {
+      var img = createFxImg('fx-img fx-ripple-img', ringSrc, x - size / 2, y - size / 2, size, size);
+      img.style.opacity = '0.85';
+      effectLayer.appendChild(img);
+      try {
+        img.animate([
+          { transform: 'scale(0.18)', opacity: 0.75 },
+          { transform: 'scale(1.25)', opacity: 0 }
+        ], { duration: duration, easing: 'cubic-bezier(0.18,0.9,0.2,1)', fill: 'forwards' }).onfinish = function () {
+          if (img && img.parentNode) img.parentNode.removeChild(img);
+        };
+      } catch (e) {
+        setTimeout(function () { if (img && img.parentNode) img.parentNode.removeChild(img); }, duration + 60);
+      }
+      return;
+    }
+
+    var ring = document.createElement('div');
+    ring.className = 'fx-ripple';
+    ring.style.left = (x - size / 2) + 'px';
+    ring.style.top = (y - size / 2) + 'px';
+    ring.style.width = size + 'px';
+    ring.style.height = size + 'px';
+    ring.style.borderColor = color;
+    effectLayer.appendChild(ring);
+
+    try {
+      ring.animate([
+        { transform: 'scale(0.18)', opacity: 0.75 },
+        { transform: 'scale(1.25)', opacity: 0 }
+      ], { duration: duration, easing: 'cubic-bezier(0.18,0.9,0.2,1)', fill: 'forwards' }).onfinish = function () {
+        if (ring && ring.parentNode) ring.parentNode.removeChild(ring);
+      };
+    } catch (e) {
+      ring.style.transform = 'scale(1.25)';
+      ring.style.opacity = '0';
+      setTimeout(function () { if (ring && ring.parentNode) ring.parentNode.removeChild(ring); }, duration + 60);
+    }
+  }
+
+
+/**
+   * 场景转场效果
+   * @param {Object} options - {type: 类型, duration: 持续时间, onComplete: 完成回调}
+   */
+  function transition(options) {
+    initEffects();
+    options = options || {};
+    var type = options.type || 'fade'; // fade, slide, circle
+    var duration = options.duration || 500;
+    var onComplete = options.onComplete || function() {};
+    
+    if (type === 'fade') {
+      var fadeDiv = document.createElement('div');
+      fadeDiv.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:#000;opacity:0;transition:opacity ' + (duration / 2) + 'ms;';
+      effectLayer.appendChild(fadeDiv);
+      
+      setTimeout(function() {
+        fadeDiv.style.opacity = '1';
+        setTimeout(function() {
+          onComplete();
+          fadeDiv.style.opacity = '0';
+          setTimeout(function() {
+            effectLayer.removeChild(fadeDiv);
+          }, duration / 2);
+        }, duration / 2);
+      }, 50);
+    }
+  }
+  
+  /**
+   * 文字打字机抖动效果
+   */
+  function textShake() {
+    var dialogText = GG.$('#dialog-text');
+    if (!dialogText) return;
+    
+    dialogText.style.animation = 'text-shake 0.1s';
+    setTimeout(function() {
+      dialogText.style.animation = '';
+    }, 100);
+  }
+  
+  /**
+   * 对话框震动（重要对话）
+   */
+  function dialogShake() {
+    var dialogBox = GG.$('#dialog-box');
+    if (!dialogBox) return;
+    
+    var originalTransform = dialogBox.style.transform || '';
+    var shakes = 0;
+    var maxShakes = 6;
+    
+    function doShake() {
+      if (shakes >= maxShakes) {
+        dialogBox.style.transform = originalTransform;
+        return;
+      }
+      
+      var x = (shakes % 2 === 0 ? 3 : -3);
+      dialogBox.style.transform = originalTransform + ' translateX(' + x + 'px)';
+      shakes++;
+      setTimeout(doShake, 50);
+    }
+    
+    doShake();
+  }
+  
+  /**
+   * 选项发光效果
+   */
+  function choiceGlow(buttonElement) {
+    if (!buttonElement) return;
+    
+    buttonElement.style.boxShadow = '0 0 20px rgba(255,200,100,0.8)';
+    setTimeout(function() {
+      buttonElement.style.boxShadow = '';
+    }, 300);
+  }
+  
+  // 暴露API
+  GG.effects = {
+    init: initEffects,
+    shake: shake,
+    flash: flash,
+    particles: particles,
+    spell: spell,
+    beam: beam,
+    hit: hit,
+    paperVanish: paperVanish,
+    puff: puff,
+    sleep: sleep,
+    wake: wake,
+    eyeClose: eyeClose,
+    eyeOpen: eyeOpen,
+    ripple: ripple,
+    transition: transition,
+    textShake: textShake,
+    dialogShake: dialogShake,
+    choiceGlow: choiceGlow
+  };
+  
+  // 添加CSS动画
+  var style = document.createElement('style');
+  style.textContent = `
+    @keyframes text-shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      75% { transform: translateX(2px); }
+    }
+  
+
+    /* 局部魔法/受击特效元素 */
+    .fx-spark, .fx-hit-ring, .fx-magic-ring, .fx-beam, .fx-smoke {
+      position: absolute;
+      pointer-events: none;
+      will-change: transform, opacity;
+    }
+    .fx-spark {
+      border-radius: 999px;
+      filter: blur(0.2px);
+      mix-blend-mode: screen;
+    }
+    .fx-hit-ring, .fx-magic-ring {
+      border: 2px solid;
+      border-radius: 999px;
+      background: transparent;
+      mix-blend-mode: screen;
+    }
+    .fx-beam {
+      border-radius: 999px;
+      mix-blend-mode: screen;
+    }
+    .fx-smoke {
+      border-radius: 999px;
+      filter: blur(1.2px);
+      mix-blend-mode: screen;
+    }
+
+
+/* 贴图版特效（你新生成的 PNG） */
+.fx-img{
+  position:absolute;
+  pointer-events:none;
+  will-change: transform, opacity;
+  user-select:none;
+  -webkit-user-drag:none;
+}
+.fx-magic-circle-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 18px rgba(208,128,255,0.22)); }
+.fx-beam-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 14px rgba(208,128,255,0.25)); }
+.fx-hit-ring-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 14px rgba(112,208,255,0.18)); }
+.fx-hit-spark-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 10px rgba(255,255,255,0.18)); }
+.fx-paper-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 10px rgba(255,255,255,0.14)); }
+.fx-paper-bit-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 10px rgba(255,255,255,0.10)); }
+.fx-zzz-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 14px rgba(255,255,255,0.10)); }
+.fx-eye-glow-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 18px rgba(255,240,220,0.10)); }
+.fx-ripple-img{ mix-blend-mode: screen; filter: drop-shadow(0 0 12px rgba(255,255,255,0.10)); }
+
+    /* 睡觉/醒来/睁眼 */
+    .fx-sleep-overlay, .fx-wake-overlay {
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      will-change: opacity;
+      mix-blend-mode: screen;
+    }
+    .fx-zzz {
+      position:absolute;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-shadow: 0 0 18px rgba(255,255,255,0.15);
+      pointer-events:none;
+      will-change: transform, opacity;
+    }
+    .fx-eye-wrap{
+      position:absolute; inset:0; pointer-events:none;
+      z-index: 30;
+    }
+    .fx-eyelid{
+      position:absolute; left:0; width:100%; height:50%;
+      background: #000;
+      will-change: transform;
+    }
+    .fx-eyelid.top{ top:0; }
+    .fx-eyelid.bottom{ bottom:0; }
+    .fx-ripple{
+      position:absolute;
+      border: 2px solid rgba(255,255,255,0.38);
+      border-radius: 999px;
+      pointer-events:none;
+      box-shadow: 0 0 18px rgba(255,255,255,0.10);
+      mix-blend-mode: screen;
+      will-change: transform, opacity;
+    }
+`;
+  document.head.appendChild(style);
+})();
