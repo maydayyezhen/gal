@@ -8,5 +8,12 @@ window.CHAPTER1_SCENE_ORDER = [
   'scene_ch1_dream_princess',
   'scene_ch1_dream_princess_2',
   'scene_ch1_dream_accept',
-  'scene_ch1_dream_hesitate'
+  'scene_ch1_dream_hesitate',
+  'scene_ch1_dream_battle',
+  'scene_ch1_battle_tank',
+  'scene_ch1_battle_dodge',
+  'scene_ch1_battle_continue',
+  'scene_ch1_battle_win',
+  'scene_ch1_battle_fumble',
+  'scene_ch1_after_battle'
 ];
